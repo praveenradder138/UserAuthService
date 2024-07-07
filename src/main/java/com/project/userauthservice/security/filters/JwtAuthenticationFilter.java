@@ -1,5 +1,6 @@
 package com.project.userauthservice.security.filters;
 
+import com.project.userauthservice.exceptions.InvalidJwtTokenException;
 import com.project.userauthservice.security.service.CustomUserDetailsService;
 import com.project.userauthservice.utils.JwtUtils;
 import jakarta.servlet.FilterChain;
@@ -25,19 +26,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+        try {
+            String token = getJwtFromRequest(request);
+            String userEmail = jwtUtils.extractUsername(token);
+            if (userEmail != null) {
+                UserDetails userDetails = customUserDetailsService.loadUserByUsername(userEmail);
+                if (jwtUtils.isTokenValid(token, userDetails)) {
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
+                else{
+                    throw new InvalidJwtTokenException("Invalid token or expired token");
+                }
 
-        String token = getJwtFromRequest(request);
-        String userEmail = jwtUtils.extractUsername(token);
-        if (userEmail != null ) {
-            UserDetails userDetails = customUserDetailsService.loadUserByUsername(userEmail);
-            if ( jwtUtils.isTokenValid(token,userDetails )) {
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
             }
-
+            else throw new InvalidJwtTokenException("Invalid token, subject doesn't exist");
+            filterChain.doFilter(request, response);
+        }catch(InvalidJwtTokenException ex){
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write(ex.getMessage());
+        }catch (Exception ex) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            response.getWriter().write("An error occurred while processing the token: " +ex.getMessage() );
         }
-        filterChain.doFilter(request, response);
     }
 
     @Override

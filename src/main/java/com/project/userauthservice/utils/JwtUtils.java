@@ -1,7 +1,9 @@
 package com.project.userauthservice.utils;
 
 
+import com.project.userauthservice.exceptions.InvalidJwtTokenException;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
@@ -25,14 +27,14 @@ public class JwtUtils {
     @Value("${security.jwt.token.expiration}")
     private Long jwtExpiration;
 
-    public String extractUsername(String token) {
+    public String extractUsername(String token) throws InvalidJwtTokenException {
         return extractClaim(token, Claims::getSubject);
     }
 
-    public List<String> extractRoles(String token) {
+    public List<String> extractRoles(String token) throws InvalidJwtTokenException {
         return extractClaim(token, claims -> claims.get("roles", List.class));
     }
-    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
+    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) throws InvalidJwtTokenException {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
     }
@@ -69,7 +71,7 @@ public class JwtUtils {
                 .compact();
     }
 
-    public boolean isTokenValid(String token, UserDetails userDetails) {
+    public boolean isTokenValid(String token, UserDetails userDetails) throws InvalidJwtTokenException {
         final String username = extractUsername(token);
         final List<String> roles = extractRoles(token);
         return (username.equals(userDetails.getUsername())) && !isTokenExpired(token) &&
@@ -78,21 +80,25 @@ public class JwtUtils {
                         .toList());
     }
 
-    private boolean isTokenExpired(String token) {
+    private boolean isTokenExpired(String token) throws InvalidJwtTokenException {
         return extractExpiration(token).before(new Date());
     }
 
-    private Date extractExpiration(String token) {
+    private Date extractExpiration(String token) throws InvalidJwtTokenException {
         return extractClaim(token, Claims::getExpiration);
     }
 
-    private Claims extractAllClaims(String token) {
-        return Jwts
-                .parserBuilder()
-                .setSigningKey(getSignInKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+    private Claims extractAllClaims(String token) throws InvalidJwtTokenException {
+        try {
+            return Jwts
+                    .parserBuilder()
+                    .setSigningKey(getSignInKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (JwtException e) {
+            throw new InvalidJwtTokenException("JWT Exception: "+e.getMessage());
+        }
     }
 
     private Key getSignInKey() {
