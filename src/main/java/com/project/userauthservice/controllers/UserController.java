@@ -10,8 +10,9 @@ import jakarta.mail.MessagingException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+
 @RestController
-@RequestMapping("/users/")
+@RequestMapping("/")
 public class UserController {
 
     UserService userService;
@@ -44,9 +45,13 @@ public class UserController {
     }
 
     @GetMapping("/validateToken")
-    public ResponseEntity<String> validateToken() throws EmailVerificationTokenException {
+    public ResponseEntity<String> validateToken()  {
         return ResponseEntity.ok("Token successfully validated. You are authenticated.");
     }
 
+    @GetMapping("/oauth2/google")
+    public ResponseEntity<String> initiateGoogleLogin() {
+        return ResponseEntity.ok("redirect:/oauth2/authorization/google");
+    }
 
 }

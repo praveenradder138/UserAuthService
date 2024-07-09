@@ -9,6 +9,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
@@ -43,7 +44,7 @@ public class JwtUtils {
         Map<String, Object> extraClaims = new HashMap<>();
         extraClaims.put("roles", userDetails.getAuthorities()
                 .stream()
-                .map(authority -> authority.getAuthority())
+                .map(GrantedAuthority::getAuthority)
                 .toList());
         return generateToken(extraClaims, userDetails);
     }
@@ -76,7 +77,7 @@ public class JwtUtils {
         final List<String> roles = extractRoles(token);
         return (username.equals(userDetails.getUsername())) && !isTokenExpired(token) &&
                 roles.equals(userDetails.getAuthorities().stream()
-                        .map(authority -> authority.getAuthority())
+                        .map(GrantedAuthority::getAuthority)
                         .toList());
     }
 
